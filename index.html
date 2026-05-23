@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>원터치 실물 확인 장부</title>
+    <title>원터치 실물 확인 장부 (백업 기능 포함)</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #f5f7fb; color: #333; padding: 15px; -webkit-user-select: none; }
@@ -14,20 +14,16 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 0.9rem; color: #4b5563; margin-bottom: 8px; font-weight: bold; }
         
-        /* 입력창 */
         input[type="text"] { width: 100%; padding: 15px; border: 3px solid #cbd5e1; border-radius: 8px; font-size: 1.5rem; background: #ffffff; color: #111; font-weight: bold; text-align: center; }
         input[type="text"]:focus { border-color: #2563eb; outline: none; }
         
-        /* 상태 안내 문구 */
         #searchStatus { font-size: 1rem; font-weight: bold; text-align: center; margin: 15px 0; min-height: 1.5rem; padding: 8px; border-radius: 6px; }
         .status-found { color: #1e40af; background-color: #eff6ff; }
         .status-new { color: #b91c1c; background-color: #fef2f2; }
 
-        /* 사진 영역 및 십자가 가이드 */
         .photo-area { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 15px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #fafafa; min-height: 250px; justify-content: center; overflow: hidden; }
         .img-preview-large { width: 100%; max-width: 280px; aspect-ratio: 1; border-radius: 12px; object-fit: cover; background: #f3f4f6; border: 1px solid #cbd5e1; z-index: 1; }
         
-        /* 신규 등록용 원터치 거대 버튼 (정중앙 배치) */
         .btn-one-touch { 
             position: absolute; 
             top: 0; left: 0; width: 100%; height: 100%; 
@@ -37,22 +33,26 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px;
         }
         .btn-one-touch:active { background-color: #dbeafe; }
-        
-        /* 버튼 내부 큰 플러스 아이콘 */
         .icon-plus { font-size: 3.5rem; color: #2563eb; line-height: 1; }
 
-        /* 내역 리스트 */
         .history-container { max-height: 220px; overflow-y: auto; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #edf2f7; }
         .history-item:last-child { border-bottom: none; }
         .code-tag { background: #eff6ff; color: #1e40af; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; }
-        .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 10px; font-size: 0.85rem; width: auto; border-radius: 6px; cursor: pointer; }
+        
+        /* 버튼 공통 스타일 및 백업 영역 스타일 */
+        button { cursor: pointer; font-weight: bold; }
+        .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px; }
+        
+        .backup-zone { display: flex; gap: 10px; margin-top: 5px; }
+        .btn-backup { background-color: #2563eb; color: white; border: none; padding: 12px; border-radius: 8px; flex: 1; font-size: 1rem; }
+        .btn-restore { background-color: #4b5563; color: white; border: none; padding: 12px; border-radius: 8px; flex: 1; font-size: 1rem; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📸 원터치 실물 확인 시스템</h2>
+    <h2>📸 원터치 실물 확인 장부</h2>
     
     <div class="card">
         <div class="card-title">⌨️ 코드 번호 입력</div>
@@ -62,22 +62,17 @@
             <input type="text" id="productCode" placeholder="숫자 번호 입력" oninput="searchCode(this.value)">
         </div>
 
-        <!-- 결과 알림 메시지 -->
         <div id="searchStatus">번호를 입력하면 등록 여부를 확인합니다.</div>
 
-        <!-- 사진 및 촬영 통합 영역 -->
         <div class="form-group">
             <div class="photo-area" id="photoArea">
-                <!-- 기존에 사진이 있을 때 보여주는 칸 -->
                 <img id="photoPreview" class="img-preview-large" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg>">
                 
-                <!-- 신규 코드일 때만 자판기 화면(가이드)을 덮어버리는 십자가 원터치 버튼 -->
                 <button type="button" id="oneTouchButton" class="btn-one-touch" onclick="triggerCameraInput()" style="display:none;">
                     <span class="icon-plus">＋</span>
                     <span>신규 사진 촬영하기<br><small style="font-size:0.85rem; color:#64748b; font-weight:normal;">(촬영 즉시 장부에 자동 저장됩니다)</small></span>
                 </button>
                 
-                <!-- 실제 카메라를 구동하는 숨겨진 입력창 -->
                 <input type="file" id="photoFile" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoAndAutoSave(this)">
             </div>
         </div>
@@ -90,11 +85,22 @@
             <p style="text-align:center; color:#9ca3af; padding:20px; font-size:0.9rem;">등록된 내역이 없습니다.</p>
         </div>
     </div>
+
+    <!-- 데이터 관리 (NASA 백업) 카드 -->
+    <div class="card">
+        <div class="card-title">💾 핸드폰 교체용 장부 백업/복원</div>
+        <div class="backup-zone">
+            <button type="button" class="btn-backup" onclick="exportDatabase()">📤 장부 백업하기</button>
+            <button type="button" class="btn-restore" onclick="triggerRestoreInput()">📥 장부 가져오기</button>
+        </div>
+        <input type="file" id="restoreFile" accept=".txt" style="display:none;" onchange="importDatabase(this)">
+        <p style="font-size:0.75rem; color:#6b7280; text-align:center; margin-top:8px;">백업된 파일은 내 스마트폰의 '다운로드' 폴더에 저장됩니다.</p>
+    </div>
 </div>
 
 <script>
     let db = null;
-    const request = indexedDB.open("OneTouchMatchDB", 1);
+    const request = indexedDB.open("BackupEnabledMatchDB", 1);
     
     request.onupgradeneeded = (e) => {
         db = e.target.result;
@@ -116,7 +122,6 @@
         }
     }
 
-    // 실시간 번호 조회
     function searchCode(val) {
         const status = document.getElementById('searchStatus');
         const preview = document.getElementById('photoPreview');
@@ -142,29 +147,23 @@
 
         req.onsuccess = () => {
             if (req.result) {
-                // [기존 번호 있음] -> 기존 사진만 깔끔하게 노출
                 status.className = "status-found";
                 status.innerText = "📢 이미 등록된 코드입니다! 아래 사진을 확인하세요.";
                 preview.src = req.result.photo;
                 preview.style.display = "block";
-                oneTouchBtn.style.display = "none"; // 버튼 숨김
+                oneTouchBtn.style.display = "none";
                 speak("이전에 등록된 사진을 찾았습니다.");
             } else {
-                // [신규 번호] -> 자판기 그림판 가리고 십자가 대형 버튼 등판
                 status.className = "status-new";
                 status.innerText = "❓ 처음 보는 번호입니다. 아래를 눌러 등록하세요.";
-                preview.style.display = "none"; // 기본 자판기 화면 숨김
-                oneTouchBtn.style.display = "flex"; // 십자가 원터치 버튼 띄움
+                preview.style.display = "none";
+                oneTouchBtn.style.display = "flex";
             }
         };
     }
 
-    // 십자가 구역 터치 시 카메라 켜기
-    function triggerCameraInput() { 
-        document.getElementById('photoFile').click(); 
-    }
+    function triggerCameraInput() { document.getElementById('photoFile').click(); }
     
-    // [핵심 개선] 사진 찍자마자 별도 확인 없이 즉시 자동 저장
     function handlePhotoAndAutoSave(input) {
         const code = document.getElementById('productCode').value.trim();
         if (!code) { alert("코드가 사라졌습니다. 다시 입력해 주세요."); return; }
@@ -183,15 +182,14 @@
                     
                     const finalPhoto = canvas.toDataURL('image/jpeg', 0.8);
                     
-                    // --- 여기서 저장 처리를 다이렉트로 수행합니다 ---
                     const tx = db.transaction("checks", "readwrite");
                     tx.objectStore("checks").add({ code, photo: finalPhoto, date: new Date().toLocaleString('ko-KR') });
                     
                     tx.oncomplete = () => {
                         alert(`코드 [${code}] 장부에 자동 저장되었습니다!`);
-                        input.value = ""; // 입력 리셋
+                        input.value = "";
                         loadHistory();
-                        searchCode(code); // 저장 후 등록된 사진 모드로 화면 자동 전환
+                        searchCode(code);
                     };
                 };
                 img.src = e.target.result;
@@ -200,7 +198,6 @@
         }
     }
 
-    // 하단 내역 출력
     function loadHistory() {
         if (!db) return;
         const store = db.transaction("checks", "readonly").objectStore("checks");
@@ -237,11 +234,97 @@
         if (confirm("이 등록 내역을 삭제하시겠습니까?")) {
             const tx = db.transaction("checks", "readwrite");
             tx.objectStore("checks").delete(id);
-            tx.oncomplete = () => { 
-                loadHistory(); 
-                document.getElementById('productCode').value = '';
-                searchCode('');
+            tx.oncomplete = () => { loadHistory(); document.getElementById('productCode').value = ''; searchCode(''); };
+        }
+    }
+
+    // --- [핵심 추가] 1안 데이터 전체 백업 프로세스 ---
+    function exportDatabase() {
+        if (!db) return;
+        const store = db.transaction("checks", "readonly").objectStore("checks");
+        const allData = [];
+
+        store.openCursor().onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                // 필요 정보(코드, 사진 데이터, 날짜)만 추출
+                allData.push({
+                    code: cursor.value.code,
+                    photo: cursor.value.photo,
+                    date: cursor.value.date
+                });
+                cursor.continue();
+            } else {
+                if (allData.length === 0) {
+                    alert("백업할 장부 데이터가 없습니다.");
+                    return;
+                }
+                // 텍스트 파일화하여 다운로드 처리
+                const jsonString = JSON.stringify(allData);
+                const blob = new Blob([jsonString], { type: "text/plain;charset=utf-8" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "nasa_backup.txt"; // 사장님이 기억하기 쉽게 파일명 고정
+                link.click();
+                alert("장부 전체가 'nasa_backup.txt' 파일로 내보내졌습니다.\n스마트폰의 [내 파일] -> [다운로드] 폴더를 확인하세요!");
+            }
+        };
+    }
+
+    // 가져오기 트리거
+    function triggerRestoreInput() { document.getElementById('restoreFile').click(); }
+
+    // 백업 파일 읽어서 복원하기
+    function importDatabase(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) {
+                        alert("올바른 장부 백업 파일이 아닙니다.");
+                        return;
+                    }
+
+                    if (confirm(`기존 내역에 추가로 [${importedData.length}개]의 데이터를 합치시겠습니까?`)) {
+                        const tx = db.transaction("checks", "readwrite");
+                        const store = tx.objectStore("checks");
+                        
+                        importedData.forEach(item => {
+                            store.add({ code: item.code, photo: item.photo, date: item.date });
+                        });
+
+                        tx.oncomplete = () => {
+                            alert("장부 데이터를 성공적으로 가져왔습니다!");
+                            input.value = "";
+                            loadHistory();
+                        };
+                    }
+                } catch (err) {
+                    alert("파일을 읽는 도중 오류가 발생했습니다. 올바른 백업 파일인지 확인해주세요.");
+                }
             };
+            reader.readAsDataURL(file); // 텍스트 읽기 유도
+            
+            // 일반 텍스트 읽기로 재수행
+            const textReader = new FileReader();
+            textReader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    const tx = db.transaction("checks", "readwrite");
+                    const store = tx.objectStore("checks");
+                    importedData.forEach(item => {
+                        store.add({ code: item.code, photo: item.photo, date: item.date });
+                    });
+                    tx.oncomplete = () => {
+                        alert("이전 장부 데이터를 성공적으로 복원했습니다!");
+                        input.value = "";
+                        loadHistory();
+                    };
+                } catch(err){}
+            };
+            textReader.readAsText(file);
         }
     }
 </script>
