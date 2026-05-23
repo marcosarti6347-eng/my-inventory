@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>원터치 실물 확인 장부 (백업 기능 포함)</title>
+    <title>원터치 실물 확인 장부 (백업 오류 수정판)</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #f5f7fb; color: #333; padding: 15px; -webkit-user-select: none; }
@@ -40,7 +40,6 @@
         .history-item:last-child { border-bottom: none; }
         .code-tag { background: #eff6ff; color: #1e40af; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 1.1rem; }
         
-        /* 버튼 공통 스타일 및 백업 영역 스타일 */
         button { cursor: pointer; font-weight: bold; }
         .btn-delete { background-color: #ef4444; color: white; border: none; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px; }
         
@@ -238,7 +237,6 @@
         }
     }
 
-    // --- [핵심 추가] 1안 데이터 전체 백업 프로세스 ---
     function exportDatabase() {
         if (!db) return;
         const store = db.transaction("checks", "readonly").objectStore("checks");
@@ -247,7 +245,6 @@
         store.openCursor().onsuccess = (e) => {
             const cursor = e.target.result;
             if (cursor) {
-                // 필요 정보(코드, 사진 데이터, 날짜)만 추출
                 allData.push({
                     code: cursor.value.code,
                     photo: cursor.value.photo,
@@ -259,73 +256,63 @@
                     alert("백업할 장부 데이터가 없습니다.");
                     return;
                 }
-                // 텍스트 파일화하여 다운로드 처리
                 const jsonString = JSON.stringify(allData);
                 const blob = new Blob([jsonString], { type: "text/plain;charset=utf-8" });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
-                link.download = "nasa_backup.txt"; // 사장님이 기억하기 쉽게 파일명 고정
+                link.download = "nasa_backup.txt";
                 link.click();
                 alert("장부 전체가 'nasa_backup.txt' 파일로 내보내졌습니다.\n스마트폰의 [내 파일] -> [다운로드] 폴더를 확인하세요!");
             }
         };
     }
 
-    // 가져오기 트리거
     function triggerRestoreInput() { document.getElementById('restoreFile').click(); }
 
-    // 백업 파일 읽어서 복원하기
+    // [수정 완료] 중복 파일 처리 및 무한 알림창 에러 완전 해결
     function importDatabase(input) {
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (!Array.isArray(importedData)) {
-                        alert("올바른 장부 백업 파일이 아닙니다.");
-                        return;
-                    }
-
-                    if (confirm(`기존 내역에 추가로 [${importedData.length}개]의 데이터를 합치시겠습니까?`)) {
-                        const tx = db.transaction("checks", "readwrite");
-                        const store = tx.objectStore("checks");
-                        
-                        importedData.forEach(item => {
-                            store.add({ code: item.code, photo: item.photo, date: item.date });
-                        });
-
-                        tx.oncomplete = () => {
-                            alert("장부 데이터를 성공적으로 가져왔습니다!");
-                            input.value = "";
-                            loadHistory();
-                        };
-                    }
-                } catch (err) {
-                    alert("파일을 읽는 도중 오류가 발생했습니다. 올바른 백업 파일인지 확인해주세요.");
+        if (!input.files || !input.files[0]) return;
+        
+        const file = input.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (!Array.isArray(importedData)) {
+                    alert("올바른 장부 백업 파일이 아닙니다.");
+                    input.value = "";
+                    return;
                 }
-            };
-            reader.readAsDataURL(file); // 텍스트 읽기 유도
-            
-            // 일반 텍스트 읽기로 재수행
-            const textReader = new FileReader();
-            textReader.onload = (e) => {
-                try {
-                    const importedData = JSON.parse(e.target.result);
+
+                if (confirm(`기존 내역에 추가로 [${importedData.length}개]의 데이터를 합치시겠습니까?`)) {
                     const tx = db.transaction("checks", "readwrite");
                     const store = tx.objectStore("checks");
+                    
                     importedData.forEach(item => {
                         store.add({ code: item.code, photo: item.photo, date: item.date });
                     });
+
                     tx.oncomplete = () => {
-                        alert("이전 장부 데이터를 성공적으로 복원했습니다!");
+                        alert("이전 장부 데이터를 성공적으로 모두 복원했습니다!");
                         input.value = "";
                         loadHistory();
                     };
-                } catch(err){}
-            };
-            textReader.readAsText(file);
-        }
+                    
+                    tx.onerror = () => {
+                        alert("장부 저장 중에 문제가 발생했습니다.");
+                        input.value = "";
+                    };
+                } else {
+                    input.value = ""; // 취소 시 초기화
+                }
+            } catch (err) {
+                alert("파일을 읽는 도중 오류가 발생했습니다. 올바른 백업 파일인지 확인해주세요.");
+                input.value = "";
+            }
+        };
+        
+        reader.readAsText(file); // 단 한 번만 안전하게 텍스트로 읽어오기
     }
 </script>
 </body>
